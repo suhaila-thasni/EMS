@@ -24,7 +24,7 @@ transporter.verify((error, success) => {
 
 export const sendEmail = async (to: string, subject: string, html: string) => {
   const mailOptions = {
-    from: `"Fashion Couture" <${process.env.EMAIL_USER}>`,
+    from: `"Zorrow Tech IT Solutions" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html,

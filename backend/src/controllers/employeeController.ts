@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { query } from "../config/db";
+import { logActivity } from "../utils/activityLogger";
 
 export const getAllEmployees = async (req: Request, res: Response) => {
   try {
@@ -212,6 +213,10 @@ export const updateProfile = async (req: any, res: Response) => {
       message: "Profile updated successfully",
       user: updateResult.rows[0]
     });
+
+    // Log activity (after response)
+    const changedFields = [firstName && 'name', department && 'department', shopLocation && 'location', profile_img && 'profile image'].filter(Boolean);
+    logActivity(userId, "profile_updated", `Updated: ${changedFields.join(', ')}`, { changedFields });
   } catch (error: any) {
     console.error("Update Profile Error:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -282,7 +287,7 @@ export const getSettings = async (req: any, res: Response) => {
 
   try {
     const result = await query(
-      "SELECT high_fidelity_maps, auto_sync_gps FROM users WHERE id = $1",
+      "SELECT high_fidelity_maps, auto_sync_gps, biometric_strict, key_rotation, terminal_id, os_layer, two_factor_enabled, notif_security_email, notif_security_push, notif_compliance_email, notif_compliance_push, notif_system_email, notif_system_push FROM users WHERE id = $1",
       [userId]
     );
     if (result.rows.length === 0) {
@@ -297,7 +302,10 @@ export const getSettings = async (req: any, res: Response) => {
 
 export const updateSettings = async (req: any, res: Response) => {
   const userId = req.user?.id;
-  const { high_fidelity_maps, auto_sync_gps } = req.body;
+  const { 
+    high_fidelity_maps, auto_sync_gps, biometric_strict, key_rotation, terminal_id, os_layer, two_factor_enabled,
+    notif_security_email, notif_security_push, notif_compliance_email, notif_compliance_push, notif_system_email, notif_system_push
+  } = req.body;
 
   if (!userId) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -307,11 +315,41 @@ export const updateSettings = async (req: any, res: Response) => {
     await query(
       `UPDATE users 
        SET high_fidelity_maps = COALESCE($1, high_fidelity_maps), 
-           auto_sync_gps = COALESCE($2, auto_sync_gps) 
-       WHERE id = $3`,
-      [high_fidelity_maps !== undefined ? high_fidelity_maps : null, auto_sync_gps !== undefined ? auto_sync_gps : null, userId]
+           auto_sync_gps = COALESCE($2, auto_sync_gps),
+           biometric_strict = COALESCE($3, biometric_strict),
+           key_rotation = COALESCE($4, key_rotation),
+           terminal_id = COALESCE($5, terminal_id),
+           os_layer = COALESCE($6, os_layer),
+           two_factor_enabled = COALESCE($7, two_factor_enabled),
+           notif_security_email = COALESCE($8, notif_security_email),
+           notif_security_push = COALESCE($9, notif_security_push),
+           notif_compliance_email = COALESCE($10, notif_compliance_email),
+           notif_compliance_push = COALESCE($11, notif_compliance_push),
+           notif_system_email = COALESCE($12, notif_system_email),
+           notif_system_push = COALESCE($13, notif_system_push)
+       WHERE id = $14`,
+      [
+        high_fidelity_maps !== undefined ? high_fidelity_maps : null,
+        auto_sync_gps !== undefined ? auto_sync_gps : null,
+        biometric_strict !== undefined ? biometric_strict : null,
+        key_rotation !== undefined ? key_rotation : null,
+        terminal_id !== undefined ? terminal_id : null,
+        os_layer !== undefined ? os_layer : null,
+        two_factor_enabled !== undefined ? two_factor_enabled : null,
+        notif_security_email !== undefined ? notif_security_email : null,
+        notif_security_push !== undefined ? notif_security_push : null,
+        notif_compliance_email !== undefined ? notif_compliance_email : null,
+        notif_compliance_push !== undefined ? notif_compliance_push : null,
+        notif_system_email !== undefined ? notif_system_email : null,
+        notif_system_push !== undefined ? notif_system_push : null,
+        userId
+      ]
     );
     res.json({ success: true, message: "Settings updated successfully" });
+
+    // Log activity (after response)
+    const changedKeys = Object.keys(req.body);
+    logActivity(userId, "settings_updated", `Updated settings: ${changedKeys.join(', ')}`, { changedKeys });
   } catch (error) {
     console.error("Update Settings Error:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -345,58 +383,56 @@ export const searchEmployees = async (req: Request, res: Response) => {
 
 // ─── Shop Location (Global Config) ───────────────────────────────────────────
 
-export const getShopLocation = async (req: Request, res: Response) => {
-  console.log(`[API] Fetching shop location config...`);
+// ─── System Configuration (Enterprise Global Settings) ───────────────────────────
+
+export const getSystemConfig = async (req: any, res: Response) => {
   try {
-    const result = await query(
-      "SELECT key, value FROM system_config WHERE key IN ('shop_lat', 'shop_lng', 'shop_name', 'allowed_radius')"
-    );
-    
-    const config: Record<string, string> = {};
-    result.rows.forEach((row: { key: string; value: string }) => {
+    const result = await query("SELECT key, value FROM system_config");
+    const config: Record<string, any> = {};
+    result.rows.forEach((row: any) => {
       config[row.key] = row.value;
     });
 
+    // ─── Phase 1: Global Admin Configuration ────────────────────────────────────
+    // Always use the primary shop location set by the administrator in the system_config table.
+    // This ensures all users are tracked against the same central facility coordinates.
+    const resolvedLat = parseFloat(config.shop_lat || "11.045719");
+    const resolvedLng = parseFloat(config.shop_lng || "76.111876");
+    const resolvedRadius = parseInt(config.allowed_radius || "100");
+    const branchName = config.shop_name || "Zorrow Tech IT Solutions (Main)";
+
     res.json({
       success: true,
-      location: {
-        lat: parseFloat(config.shop_lat || "11.045719"),
-        lng: parseFloat(config.shop_lng || "76.111876"),
-        name: config.shop_name || "Fashion Couture",
-        allowedRadius: parseInt(config.allowed_radius || "100")
+      config: {
+        ...config,
+        terminal_id: config.terminal_id || "EMS-X24-09",
+        os_layer: config.os_layer || "v1.2.4 Premium"
+      },
+      location: { 
+        lat: resolvedLat, 
+        lng: resolvedLng, 
+        name: branchName, 
+        allowedRadius: resolvedRadius 
       }
     });
   } catch (error) {
-    console.error("Get Shop Location Error:", error);
+    console.error("Get System Config Error:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-export const updateShopLocation = async (req: any, res: Response) => {
-  const { lat, lng, name, allowedRadius } = req.body;
-  console.log(`[API] Updating shop location:`, { lat, lng, name, allowedRadius });
-  if (lat === undefined || lng === undefined) {
-    return res.status(400).json({ success: false, message: "Latitude and longitude are required" });
-  }
-
+export const updateSystemConfig = async (req: Request, res: Response) => {
+  const updates = req.body; // Expecting { key1: value1, key2: value2 }
   try {
-    const upsert = async (key: string, value: string) => {
+    for (const [key, value] of Object.entries(updates)) {
       await query(
-        `INSERT INTO system_config (key, value, updated_at) VALUES ($1, $2, NOW())
-         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
-        [key, value]
+        "INSERT INTO system_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP",
+        [key, String(value)]
       );
-    };
-
-    await upsert('shop_lat', String(lat));
-    await upsert('shop_lng', String(lng));
-    if (name !== undefined) await upsert('shop_name', name);
-    if (allowedRadius !== undefined) await upsert('allowed_radius', String(allowedRadius));
-
-    console.log(`[SERVER] Shop location updated to: ${lat}, ${lng} (${name})`);
-    res.json({ success: true, message: "Shop location updated successfully" });
+    }
+    res.json({ success: true, message: "System configuration updated successfully" });
   } catch (error) {
-    console.error("Update Shop Location Error:", error);
+    console.error("Update System Config Error:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

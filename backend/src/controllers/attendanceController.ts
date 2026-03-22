@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { sendNotification } from "../utils/notificationHelper";
 import fs from "fs";
 import path from "path";
+import { logActivity } from "../utils/activityLogger";
 
 export const markAttendance = async (req: Request, res: Response) => {
   const { user_id, type, location, image } = req.body;
@@ -77,6 +78,14 @@ export const markAttendance = async (req: Request, res: Response) => {
       status,
       message: `${type} successful` 
     });
+
+    // Log activity (after response to keep it non-blocking)
+    logActivity(
+      user_id, 
+      type === "check-in" ? "attendance_check_in" : "attendance_check_out",
+      `${type} recorded with status: ${status}`,
+      { lat: location.lat, lng: location.lng, status }
+    );
   } catch (error) {
     console.error("Attendance Error:", error);
     res.status(500).json({ success: false, message: "Internal server error" });

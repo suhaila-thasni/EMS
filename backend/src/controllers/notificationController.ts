@@ -62,3 +62,52 @@ export const createNotification = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+export const deleteNotification = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+
+  try {
+    const result = await query(
+      "DELETE FROM notifications WHERE id = $1 AND user_id = $2",
+      [id, userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "Notification not found" });
+    }
+
+    res.json({ success: true, message: "Notification cleared" });
+  } catch (error: any) {
+    console.error("Delete Notification Error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const clearAllNotifications = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+
+  try {
+    const result = await query(
+      "DELETE FROM notifications WHERE user_id = $1",
+      [userId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: "All notifications cleared",
+      count: result.rowCount 
+    });
+  } catch (error: any) {
+    console.error("Clear All Notifications Error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};

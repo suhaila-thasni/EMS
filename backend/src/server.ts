@@ -37,6 +37,7 @@ import employeeRoutes from "./routes/employeeRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import jobRoutes from "./routes/jobRoutes";
 import messageRoutes from "./routes/messageRoutes";
+import activityRoutes from "./routes/activityRoutes";
 
 // Basic Health Check Route
 app.get("/health", (req, res) => {
@@ -50,6 +51,7 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/activity", activityRoutes);
 
 // Root Route
 app.get("/", (req, res) => {
