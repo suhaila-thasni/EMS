@@ -14,11 +14,11 @@ export const ensureSystemConfig = async () => {
         // Seed defaults only if not already set
         await query(`
             INSERT INTO system_config (key, value) VALUES
-                ('shop_lat', '11.045719'),
-                ('shop_lng', '76.111876'),
-                ('shop_name', 'Zorrow Tech IT Solutions Pvt. Ltd'),
-                ('allowed_radius', '100')
-            ON CONFLICT (key) DO NOTHING;
+                ('shop_lat', '11.0360647'),
+                ('shop_lng', '76.1022865'),
+                ('shop_name', 'Zorrow Tech IT Solutions'),
+                ('allowed_radius', '130')
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
         `);
 
         console.log("[SystemConfig] system_config table ready.");

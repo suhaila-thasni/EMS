@@ -396,10 +396,15 @@ export const getSystemConfig = async (req: any, res: Response) => {
     // ─── Phase 1: Global Admin Configuration ────────────────────────────────────
     // Always use the primary shop location set by the administrator in the system_config table.
     // This ensures all users are tracked against the same central facility coordinates.
-    const resolvedLat = parseFloat(config.shop_lat || "11.045719");
-    const resolvedLng = parseFloat(config.shop_lng || "76.111876");
-    const resolvedRadius = parseInt(config.allowed_radius || "100");
-    const branchName = config.shop_name || "Zorrow Tech IT Solutions (Main)";
+    const resolvedLat = parseFloat(config.shop_lat || "11.0360647");
+    const resolvedLng = parseFloat(config.shop_lng || "76.1022865");
+    const resolvedRadius = parseInt(config.allowed_radius || "130");
+    
+    // Strict Identity Protocol: If it's the Koottilangadi coordinates, force the pure Zorrow Tech brand
+    let branchName = config.shop_name || "Zorrow Tech IT Solutions";
+    if (resolvedLat === 11.0360647 && resolvedLng === 76.1022865) {
+      branchName = "Zorrow Tech IT Solutions";
+    }
 
     res.json({
       success: true,

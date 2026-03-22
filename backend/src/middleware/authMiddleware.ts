@@ -25,8 +25,8 @@ export const authorizeAdmin = (req: AuthRequest, res: Response, next: NextFuncti
   const role = req.user?.role;
   const roleLower = role?.toLowerCase();
   console.log(`[AUTH] authorizeAdmin check — user role: "${role}" (normalized: "${roleLower}")`);
-  if (roleLower !== "admin") {
-    console.warn(`[AUTH] Admin access denied — role "${role}" is not admin`);
+  if (roleLower !== "admin" && roleLower !== "system admin") {
+    console.warn(`[AUTH] Admin access denied — role "${role}" is not admin or system admin`);
     return res.status(403).json({ success: false, message: "Access denied. Admin privileges required." });
   }
   next();

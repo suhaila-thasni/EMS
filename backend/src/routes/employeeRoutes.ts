@@ -6,7 +6,7 @@ const router = Router();
 
 router.get("/all", authenticate, getAllEmployees);
 router.get("/search", authenticate, searchEmployees);
-router.get("/stats", authenticate, authorizeAdmin, getEmployeeStats);
+router.get("/stats", authenticate, getEmployeeStats);
 router.get("/compliance", authenticate, authorizeAdmin, getComplianceAlerts);
 router.get("/compliance-logs", authenticate, authorizeAdmin, getComplianceLogs);
 router.get("/neural-report", authenticate, authorizeAdmin, getNeuralReport);
@@ -15,7 +15,7 @@ router.get("/neural-report", authenticate, authorizeAdmin, getNeuralReport);
 router.get("/settings", authenticate, getSettings);
 router.patch("/settings", authenticate, updateSettings);
 router.get("/shop-location", authenticate, getSystemConfig);
-router.patch("/shop-location", authenticate, authorizeAdmin, updateSystemConfig);
+router.patch("/shop-location", authenticate, updateSystemConfig);
 router.patch("/profile/update", authenticate, updateProfile);
 router.get("/:id", authenticate, getEmployeeById);
 router.put("/:id", authenticate, authorizeAdmin, updateEmployee);
